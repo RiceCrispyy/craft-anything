@@ -253,12 +253,30 @@ fn call_plugin(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
         *slot = Some(McpClient::connect(plugin.display_name(), &plugin.server(), START_TIMEOUT)?);
     }
     let Some(c) = slot.as_mut() else { return Err(ToolError::internal("plugin client missing")) };
-    let cancel = ctx.cancel.clone();
     let args = if params.is_null() { json!({}) } else { params.clone() };
-    let result = match c.call_tool(&route.remote, args, CALL_TIMEOUT, &move || cancel.is_cancelled()) {
+    let cancel = ctx.cancel.clone();
+    let result = match c.call_tool(&route.remote, args.clone(), CALL_TIMEOUT, &move || cancel.is_cancelled()) {
         Ok(r) => r,
+        // A server that died is started again and asked once more, unless the call was cancelled.
+        Err(e) if e.code == ErrorCode::EngineMissing && !ctx.cancel.is_cancelled() => {
+            *slot = None;
+            ctx.report(None, format!("Restarting the {} plugin…", plugin.display_name()));
+            let mut fresh = McpClient::connect(plugin.display_name(), &plugin.server(), START_TIMEOUT)?;
+            let cancel = ctx.cancel.clone();
+            match fresh.call_tool(&route.remote, args, CALL_TIMEOUT, &move || cancel.is_cancelled()) {
+                Ok(r) => {
+                    *slot = Some(fresh);
+                    r
+                }
+                Err(e) => {
+                    if e.code != ErrorCode::EngineMissing {
+                        *slot = Some(fresh);
+                    }
+                    return Err(e);
+                }
+            }
+        }
         Err(e) => {
-            // A server that died is started again on the next call.
             if e.code == ErrorCode::EngineMissing {
                 *slot = None;
             }

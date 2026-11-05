@@ -472,15 +472,15 @@ pub struct Builder {
     pub inbox: PathBuf,
 }
 
-/// Our MCP server for `spec`, in the run's mode whatever the saved settings say; a builder's lists
-/// every tool in Deep mode.
+/// Our MCP server for `spec`, in the run's mode whatever the saved settings say. In Deep mode it
+/// lists every tool: each turn starts a fresh server, so toolsets enabled last turn would be gone.
 fn mcp_for(spec: &CliSpec, remote: bool) -> McpCommand {
     let mut mcp = match &spec.builder {
         Some(b) => McpCommand::local_or_remote(remote, b.investigation.clone(), Some(b.inbox.clone())),
         None => McpCommand::local_or_remote(remote, spec.project.clone(), None),
     };
     mcp.args.push(if spec.deep { "--deep" } else { "--clean-room" }.into());
-    if spec.deep && spec.builder.is_some() {
+    if spec.deep {
         mcp.args.push("--all-tools".into());
     }
     if !remote {
@@ -1747,7 +1747,8 @@ mod tests {
         assert!(args(true, true).contains(&"--all-tools".to_string()) && args(true, true).contains(&"--deep".to_string()));
         assert!(!args(false, true).contains(&"--all-tools".to_string()) && args(false, true).contains(&"--clean-room".to_string()));
         // A chat's server runs in the chat's mode too, whatever was saved.
-        assert!(args(true, false).contains(&"--deep".to_string()) && !args(true, false).contains(&"--all-tools".to_string()));
+        assert!(args(true, false).contains(&"--deep".to_string()) && args(true, false).contains(&"--all-tools".to_string()));
+        assert!(!args(false, false).contains(&"--all-tools".to_string()));
         assert!(args(false, false).contains(&"--clean-room".to_string()));
     }
 

@@ -114,6 +114,7 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
     egui::Panel::bottom("wb-bottom")
         .default_size(240.0)
         .size_range(120.0..=600.0)
+        .resizable(true)
         .frame(egui::Frame::new().fill(t.chrome).inner_margin(Margin { left: 8, right: 10, top: 4, bottom: 8 }))
         .show_collapsible(ui, &mut open, |ui| crate::guard_ui(ui, "bottom", |ui| bottom(app, ui)));
     app.state.bottom_open = open;
@@ -977,7 +978,13 @@ fn log_view(app: &CraftApp, ui: &mut Ui) {
             let secs = start.map(|s| l.at.duration_since(s).as_secs_f32()).unwrap_or(0.0);
             ui.horizontal(|ui| {
                 ui.label(RichText::new(format!("{secs:>8.2}")).font(theme::mono(11.5)).color(t.text_faint));
-                ui.label(RichText::new(&l.text).font(theme::mono(11.5)).color(if l.error { t.danger } else { t.text_dim }));
+                let line = ui.label(RichText::new(&l.text).font(theme::mono(11.5)).color(if l.error { t.danger } else { t.text_dim }));
+                line.context_menu(|ui| {
+                    if ui.button("Copy").clicked() {
+                        ui.ctx().copy_text(l.text.clone());
+                        ui.close();
+                    }
+                });
             });
         }
     });

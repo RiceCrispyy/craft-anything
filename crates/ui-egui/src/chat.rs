@@ -389,6 +389,17 @@ fn copy_button(ui: &mut Ui, over: egui::Rect, at: egui::Pos2, text: &str) {
     }
 }
 
+/// A right-click menu on a message bubble that copies the whole message.
+fn copy_menu(ui: &Ui, bubble: &egui::Response, text: &str) {
+    let area = ui.interact(bubble.rect, bubble.id.with("copy-menu"), egui::Sense::click());
+    area.context_menu(|ui| {
+        if ui.button(tr("Copy")).clicked() {
+            ui.ctx().copy_text(text.to_owned());
+            ui.close();
+        }
+    });
+}
+
 /// The person's message on the right, with its copy button beside it. Labels in a right-to-left
 /// row don't wrap by themselves, so a long prompt would run off the side: wrap it inside the bubble.
 pub(crate) fn user_bubble(ui: &mut Ui, text: &str, dense: bool) {
@@ -401,6 +412,7 @@ pub(crate) fn user_bubble(ui: &mut Ui, text: &str, dense: bool) {
                 ui.add(egui::Label::new(RichText::new(text).color(t.text)).wrap());
             });
         });
+        copy_menu(ui, &shown.response, text);
         let r = shown.response.rect;
         copy_button(ui, r, egui::pos2(r.left() - COPY - 4.0, r.top() + f32::from(margin(dense).top) - 1.0), text);
     });
@@ -414,6 +426,7 @@ pub(crate) fn answer_bubble(ui: &mut Ui, dense: bool, text: &str, content: impl 
         ui.set_width(ui.available_width());
         ui.allocate_ui_with_layout(Vec2::new((ui.available_width() - COPY - 4.0).max(0.0), 0.0), egui::Layout::top_down(egui::Align::Min), content);
     });
+    copy_menu(ui, &shown.response, text);
     let (r, m) = (shown.response.rect, margin(dense));
     copy_button(ui, r, egui::pos2(r.right() - f32::from(m.right) - COPY, r.top() + f32::from(m.top) - 1.0), text);
 }
